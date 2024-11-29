@@ -40,51 +40,56 @@ fasta_request(species_name, "protein")
 def create_database(species_name, type):
     short_name = species_name[0:3]
     dbtype = type[:4]
-    db_name = {short_name}_{type}
+    db_name = f"{short_name}_{type}"
     request = f"makeblastdb -in {short_name}_{type}.fasta -dbtype {dbtype} -out {db_name}"
     try:
         subprocess.call(request, shell=True)
-        return db_name
     except Exception as e:
         print("fail to create the database")
         print(e)
 
-nucl_db_name = create_database(species_name, "nucleotide")
-prot_db_name = create_database(species_name, "protein")
+create_database(species_name, "nucleotide")
+create_database(species_name, "protein")
 
 # blast
-def blast_request(db_name, db_type, query_file_dir):
+def blast_request(species_name, db_type, query_file_dir):
+    short_name = species_name[0:3]
+    db_name = f"{short_name}_{db_type}"
     if os.path.exists(query_file_dir):
         #need to identify the query type first
         with open(query_file_dir, mode="r") as f:
-            lines = f.readlines().rstrip()
+            lines = f.readlines()
             for line in lines:
-                if line.startwith(">") == -1:
+                line = line.strip()
+                if not line.startswith(">"):
                     reg = r"[ATCG]"
                     result_list = re.findall(reg,line.upper())
                     if len(result_list) > 5:
-                        query_type = "nucleotide"
+                        #query_type is "nucleotide"
+                        #set blast type
+                        if db_type == "nucleotide":
+                            blast_type = "blastn"
+                        else:
+                            blast_type="blastx"
                     else:
-                        query_type = "protein"
-        #different query and database type use different blast
-        if db_type == "nucleotide":
-            if query_type == "nucleotide":
-                blast_type = "blastn"
-            else:
-                blast_type = "tblastn"
-        elif db_type == "protein":
-            if query_type == "nucleotide":
-                blast_type = "blastx"
-            else:
-                blast_type= "blastp"
+                        #query_type = "protein"
+                        if db_type == "nucleotide":
+                            blast_type = "tblastn"
+                        else:
+                            blast_type = "blastp"
+                else:
+                    #obtain the accession number of this query sequence from the header
+                    acc = line.split(" ")[0]
+                    acc = acc[1:]
 
         #blasting
         try:
-            blast_query = f"{blast_type} -db {db_name} -query {query_file_dir} -outfmt 7 > {blast_type}.out"
-            subprocess.call(blast_query)       
+            blast_query = f"{blast_type} -db {db_name} -query {query_file_dir} -outfmt 7 > {acc}_{blast_type}.out"
+            subprocess.call(blast_query, shell=True)       
         except Exception as e:
             print("blasting is fail")
             print(e) 
     else:
         print("please provide the corrent directory of query file")
 
+blast_request(species_name, "nucleotide", "./query_nucleotide.fasta")
