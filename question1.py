@@ -55,41 +55,74 @@ create_database(species_name, "protein")
 def blast_request(species_name, db_type, query_file_dir):
     short_name = species_name[0:3]
     db_name = f"{short_name}_{db_type}"
-    if os.path.exists(query_file_dir):
-        #need to identify the query type first
-        with open(query_file_dir, mode="r") as f:
-            lines = f.readlines()
-            for line in lines:
-                line = line.strip()
-                if not line.startswith(">"):
-                    reg = r"[ATCG]"
-                    result_list = re.findall(reg,line.upper())
-                    if len(result_list) > 5:
-                        #query_type is "nucleotide"
-                        #set blast type
-                        if db_type == "nucleotide":
-                            blast_type = "blastn"
-                        else:
-                            blast_type="blastx"
+    #need to identify the query type first
+    with open(query_file_dir, mode="r") as f:
+        lines = f.readlines()
+        for line in lines:
+            line = line.strip()
+            if not line.startswith(">"):
+                reg = r"[ATCG]"
+                result_list = re.findall(reg,line.upper())
+                if len(result_list) > 5:
+                    #query_type is "nucleotide"
+                    #set blast type
+                    if db_type == "nucleotide":
+                        blast_type = "blastn"
                     else:
-                        #query_type = "protein"
-                        if db_type == "nucleotide":
-                            blast_type = "tblastn"
-                        else:
-                            blast_type = "blastp"
+                        blast_type="blastx"
                 else:
-                    #obtain the accession number of this query sequence from the header
-                    acc = line.split(" ")[0]
-                    acc = acc[1:]
+                    #query_type = "protein"
+                    if db_type == "nucleotide":
+                        blast_type = "tblastn"
+                    else:
+                        blast_type = "blastp"
+            else:
+                #obtain the accession number of this query sequence from the header
+                acc = line.split(" ")[0]
+                acc = acc[1:]
 
-        #blasting
-        try:
-            blast_query = f"{blast_type} -db {db_name} -query {query_file_dir} -outfmt 7 > {acc}_{blast_type}.out"
-            subprocess.call(blast_query, shell=True)       
-        except Exception as e:
-            print("blasting is fail")
-            print(e) 
+    #blasting
+    try:
+        blast_query = f"{blast_type} -db {db_name} -query {query_file_dir} -outfmt 7 > {acc}_{blast_type}.out"
+        subprocess.call(blast_query, shell=True)       
+    except Exception as e:
+        print("blasting is fail")
+        print(e) 
+
+        
+#test
+#blast_request(species_name, "nucleotide", "./query_nucleotide.fasta")
+
+#user interaction
+i = 0
+while True:
+    #obtain the database type
+    db_type = input("what type of database you want to use? nucleotide or protein?")
+    db_type = db_type.lower()
+    if db_type.startswith("nucl"):
+        db_type = "nucleotide"
+        break
+    elif db_type.startswith("prot"):
+        db_type = "protein"
+        break
     else:
-        print("please provide the corrent directory of query file")
+        print("please enter the correct database type!")
+        i += 1
+    if i >=3:
+        print("reach three attempts limit, exit from the program")
+        exit(1)
 
-blast_request(species_name, "nucleotide", "./query_nucleotide.fasta")
+i = 0
+while True:
+    #obtain the query file directory
+    query_dir = input("please enter the directory of query file")
+    if not os.path.exists(query_dir):
+        print("please provide the corrent directory of query file")
+        i += 1
+    else:
+        break
+    if i >= 3:
+        print("reach three attempts limit, exit from the program")
+        exit(1)
+
+blast_request(species_name, db_type, query_dir)
